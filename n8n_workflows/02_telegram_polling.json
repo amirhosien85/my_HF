@@ -16,7 +16,10 @@
       "name": "Every minute",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [-940, 300]
+      "position": [
+        -940,
+        300
+      ]
     },
     {
       "parameters": {
@@ -28,7 +31,10 @@
       "name": "Load offset",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [-740, 300],
+      "position": [
+        -740,
+        300
+      ],
       "credentials": {
         "postgres": {
           "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID",
@@ -42,10 +48,22 @@
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "offset", "value": "={{ $json.offset_value }}" },
-            { "name": "limit", "value": "50" },
-            { "name": "timeout", "value": "0" },
-            { "name": "allowed_updates", "value": "[\"message\",\"callback_query\"]" }
+            {
+              "name": "offset",
+              "value": "={{ $json.offset_value }}"
+            },
+            {
+              "name": "limit",
+              "value": "50"
+            },
+            {
+              "name": "timeout",
+              "value": "0"
+            },
+            {
+              "name": "allowed_updates",
+              "value": "[\"message\",\"callback_query\"]"
+            }
           ]
         },
         "options": {
@@ -61,17 +79,26 @@
       "name": "GET getUpdates",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-520, 300]
+      "position": [
+        -520,
+        300
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "version": 2 },
+          "options": {
+            "caseSensitive": true,
+            "version": 2
+          },
           "combinator": "and",
           "conditions": [
             {
               "id": "has-updates",
-              "operator": { "type": "number", "operation": "gt" },
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              },
               "leftValue": "={{ ($json.result || []).length }}",
               "rightValue": 0
             }
@@ -83,7 +110,10 @@
       "name": "Any updates?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [-300, 300]
+      "position": [
+        -300,
+        300
+      ]
     },
     {
       "parameters": {
@@ -94,7 +124,10 @@
       "name": "Split Out Items",
       "type": "n8n-nodes-base.itemLists",
       "typeVersion": 3,
-      "position": [-80, 200]
+      "position": [
+        -80,
+        200
+      ]
     },
     {
       "parameters": {
@@ -104,16 +137,29 @@
       "name": "Classify update",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [140, 200]
+      "position": [
+        140,
+        200
+      ]
     },
     {
       "parameters": {
         "operation": "upsert",
-        "schema": { "__rl": true, "mode": "name", "value": "public" },
-        "table": { "__rl": true, "mode": "name", "value": "telegram_updates" },
+        "schema": {
+          "__rl": true,
+          "mode": "name",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "name",
+          "value": "telegram_updates"
+        },
         "columns": {
           "mappingMode": "defineBelow",
-          "matchingColumns": ["update_id"],
+          "matchingColumns": [
+            "update_id"
+          ],
           "value": {
             "update_id": "={{ $json.update_id }}",
             "chat_id": "={{ $json.chat_id }}",
@@ -128,7 +174,10 @@
       "name": "Upsert telegram_updates (dedupe by update_id)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [360, 200],
+      "position": [
+        360,
+        200
+      ],
       "credentials": {
         "postgres": {
           "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID",
@@ -146,7 +195,10 @@
       "name": "Flood-wait 1s",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
-      "position": [580, 200],
+      "position": [
+        580,
+        200
+      ],
       "webhookId": "c0000000-0000-4000-8000-0000000000aa"
     },
     {
@@ -155,11 +207,17 @@
           "values": [
             {
               "conditions": {
-                "options": { "caseSensitive": true, "version": 2 },
+                "options": {
+                  "caseSensitive": true,
+                  "version": 2
+                },
                 "combinator": "and",
                 "conditions": [
                   {
-                    "operator": { "type": "string", "operation": "equals" },
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
                     "leftValue": "={{ $('Classify update').item.json.kind }}",
                     "rightValue": "text"
                   }
@@ -169,11 +227,17 @@
             },
             {
               "conditions": {
-                "options": { "caseSensitive": true, "version": 2 },
+                "options": {
+                  "caseSensitive": true,
+                  "version": 2
+                },
                 "combinator": "and",
                 "conditions": [
                   {
-                    "operator": { "type": "string", "operation": "equals" },
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
                     "leftValue": "={{ $('Classify update').item.json.kind }}",
                     "rightValue": "voice"
                   }
@@ -183,11 +247,17 @@
             },
             {
               "conditions": {
-                "options": { "caseSensitive": true, "version": 2 },
+                "options": {
+                  "caseSensitive": true,
+                  "version": 2
+                },
                 "combinator": "and",
                 "conditions": [
                   {
-                    "operator": { "type": "string", "operation": "equals" },
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
                     "leftValue": "={{ $('Classify update').item.json.kind }}",
                     "rightValue": "callback"
                   }
@@ -203,7 +273,10 @@
       "name": "Route by kind",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
-      "position": [800, 200]
+      "position": [
+        800,
+        200
+      ]
     },
     {
       "parameters": {
@@ -212,7 +285,10 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "X-Service-Token", "value": "={{ $env.SERVICE_TOKEN }}" }
+            {
+              "name": "X-Service-Token",
+              "value": "={{ $env.SERVICE_TOKEN }}"
+            }
           ]
         },
         "sendBody": true,
@@ -224,7 +300,10 @@
       "name": "Idea Collider · store text",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1040, 60]
+      "position": [
+        1040,
+        60
+      ]
     },
     {
       "parameters": {
@@ -233,19 +312,27 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "X-Service-Token", "value": "={{ $env.SERVICE_TOKEN }}" }
+            {
+              "name": "X-Service-Token",
+              "value": "={{ $env.SERVICE_TOKEN }}"
+            }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ file_id: $('Classify update').item.json.file_id, user_id: String($('Classify update').item.json.user_id), chat_id: String($('Classify update').item.json.chat_id) }) }}",
-        "options": { "timeout": 180000 }
+        "options": {
+          "timeout": 180000
+        }
       },
       "id": "b2000000-0000-4000-8000-00000000000b",
       "name": "Idea Collider · transcribe voice",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1040, 220]
+      "position": [
+        1040,
+        220
+      ]
     },
     {
       "parameters": {
@@ -264,13 +351,18 @@
             "callback_query_id": "={{ $('Classify update').item.json.callback_query_id }}"
           }
         },
-        "options": { "waitForSubWorkflow": false }
+        "options": {
+          "waitForSubWorkflow": false
+        }
       },
       "id": "b2000000-0000-4000-8000-00000000000c",
       "name": "Handle button press",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
-      "position": [1040, 380]
+      "position": [
+        1040,
+        380
+      ]
     },
     {
       "parameters": {
@@ -284,41 +376,158 @@
       "name": "Advance offset",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [-80, 440],
+      "position": [
+        -80,
+        440
+      ],
       "credentials": {
         "postgres": {
           "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID",
           "name": "Supabase Postgres"
         }
       }
+    },
+    {
+      "parameters": {},
+      "id": "b2000000-0000-4000-8000-00000000000f",
+      "name": "Manual test run",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -940,
+        460
+      ]
     }
   ],
   "connections": {
-    "Every minute": { "main": [[{ "node": "Load offset", "type": "main", "index": 0 }]] },
-    "Load offset": { "main": [[{ "node": "GET getUpdates", "type": "main", "index": 0 }]] },
-    "GET getUpdates": { "main": [[{ "node": "Any updates?", "type": "main", "index": 0 }]] },
+    "Every minute": {
+      "main": [
+        [
+          {
+            "node": "Load offset",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load offset": {
+      "main": [
+        [
+          {
+            "node": "GET getUpdates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET getUpdates": {
+      "main": [
+        [
+          {
+            "node": "Any updates?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Any updates?": {
       "main": [
         [
-          { "node": "Split Out Items", "type": "main", "index": 0 },
-          { "node": "Advance offset", "type": "main", "index": 0 }
+          {
+            "node": "Split Out Items",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Advance offset",
+            "type": "main",
+            "index": 0
+          }
         ],
         []
       ]
     },
-    "Split Out Items": { "main": [[{ "node": "Classify update", "type": "main", "index": 0 }]] },
+    "Split Out Items": {
+      "main": [
+        [
+          {
+            "node": "Classify update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Classify update": {
-      "main": [[{ "node": "Upsert telegram_updates (dedupe by update_id)", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Upsert telegram_updates (dedupe by update_id)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Upsert telegram_updates (dedupe by update_id)": {
-      "main": [[{ "node": "Flood-wait 1s", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Flood-wait 1s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
-    "Flood-wait 1s": { "main": [[{ "node": "Route by kind", "type": "main", "index": 0 }]] },
+    "Flood-wait 1s": {
+      "main": [
+        [
+          {
+            "node": "Route by kind",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Route by kind": {
       "main": [
-        [{ "node": "Idea Collider · store text", "type": "main", "index": 0 }],
-        [{ "node": "Idea Collider · transcribe voice", "type": "main", "index": 0 }],
-        [{ "node": "Handle button press", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Idea Collider · store text",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Idea Collider · transcribe voice",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle button press",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual test run": {
+      "main": [
+        [
+          {
+            "node": "Load offset",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },
@@ -327,5 +536,9 @@
     "saveDataErrorExecution": "all"
   },
   "pinData": {},
-  "tags": [{ "name": "telegram" }]
+  "tags": [
+    {
+      "name": "telegram"
+    }
+  ]
 }

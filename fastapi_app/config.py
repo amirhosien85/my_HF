@@ -9,8 +9,9 @@ def _int_env(name: str, default: int) -> int:
 
 
 HF_TOKEN = os.getenv("HF_TOKEN", "")
-HF_API_BASE = os.getenv("HF_API_BASE", "https://router.huggingface.co/v1")
-HF_MODEL = os.getenv("HF_MODEL", "meta-llama/Meta-Llama-3-70B-Instruct")
+HF_ROUTER_BASE = os.getenv("HF_ROUTER_BASE", "https://router.huggingface.co")
+HF_API_BASE = os.getenv("HF_API_BASE", f"{HF_ROUTER_BASE}/v1")
+HF_MODEL = os.getenv("HF_MODEL", "meta-llama/Llama-3.3-70B-Instruct")
 HF_EMBEDDING_MODEL = os.getenv("HF_EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
 
 CHROMA_PATH = os.getenv("CHROMA_PATH", "/data/chroma")

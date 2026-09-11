@@ -2,12 +2,24 @@
   "name": "04 · Forum Publisher (topics, chunking, inline buttons)",
   "nodes": [
     {
-      "parameters": { "rule": { "interval": [{ "field": "minutes", "minutesInterval": 5 }] } },
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
       "id": "d4000000-0000-4000-8000-000000000001",
       "name": "Every 5 min",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [-940, 300]
+      "position": [
+        -940,
+        300
+      ]
     },
     {
       "parameters": {
@@ -19,18 +31,32 @@
       "name": "Fetch edited items",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [-720, 300],
+      "position": [
+        -720,
+        300
+      ],
       "credentials": {
-        "postgres": { "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID", "name": "Supabase Postgres" }
+        "postgres": {
+          "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID",
+          "name": "Supabase Postgres"
+        }
       }
     },
     {
-      "parameters": { "batchSize": 1, "options": { "reset": false } },
+      "parameters": {
+        "batchSize": 1,
+        "options": {
+          "reset": false
+        }
+      },
       "id": "d4000000-0000-4000-8000-000000000003",
       "name": "Loop Over Items",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
-      "position": [-500, 300]
+      "position": [
+        -500,
+        300
+      ]
     },
     {
       "parameters": {
@@ -40,7 +66,10 @@
       "name": "Chunk to 4096 limit",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-280, 380]
+      "position": [
+        -280,
+        380
+      ]
     },
     {
       "parameters": {
@@ -49,32 +78,55 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify(Object.assign({ chat_id: $env.TELEGRAM_SUPERGROUP_ID, message_thread_id: Number($json.thread_id), text: $json.text, parse_mode: 'HTML', disable_web_page_preview: true }, $json.is_last ? { reply_markup: { inline_keyboard: [[ { text: '🔥 عالیه', callback_data: 'fire|' + $json.category + '|' + $json.short_id }, { text: '💤 رد کن', callback_data: 'pass|' + $json.category + '|' + $json.short_id } ], [ { text: '💊 قرص قرمز', callback_data: 'redpill|' + $json.category + '|' + $json.short_id } ]] } } : {})) }}",
-        "options": { "timeout": 30000, "response": { "response": { "neverError": true } } }
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
       },
       "id": "d4000000-0000-4000-8000-000000000005",
       "name": "Telegram · sendMessage",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-60, 380]
+      "position": [
+        -60,
+        380
+      ]
     },
     {
-      "parameters": { "amount": 2, "unit": "seconds" },
+      "parameters": {
+        "amount": 2,
+        "unit": "seconds"
+      },
       "id": "d4000000-0000-4000-8000-000000000006",
       "name": "Flood-wait 2s",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
-      "position": [160, 380],
+      "position": [
+        160,
+        380
+      ],
       "webhookId": "c0000000-0000-4000-8000-0000000000bb"
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "version": 2 },
+          "options": {
+            "caseSensitive": true,
+            "version": 2
+          },
           "combinator": "and",
           "conditions": [
             {
               "id": "is-last-chunk",
-              "operator": { "type": "boolean", "operation": "true", "singleValue": true },
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
               "leftValue": "={{ $('Chunk to 4096 limit').item.json.is_last }}"
             }
           ]
@@ -85,7 +137,10 @@
       "name": "Last chunk?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [380, 380]
+      "position": [
+        380,
+        380
+      ]
     },
     {
       "parameters": {
@@ -99,9 +154,15 @@
       "name": "Mark published",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [600, 300],
+      "position": [
+        600,
+        300
+      ],
       "credentials": {
-        "postgres": { "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID", "name": "Supabase Postgres" }
+        "postgres": {
+          "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID",
+          "name": "Supabase Postgres"
+        }
       }
     },
     {
@@ -110,30 +171,151 @@
       "name": "Next chunk",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [600, 460]
+      "position": [
+        600,
+        460
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "d4000000-0000-4000-8000-00000000000f",
+      "name": "Manual test run",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -940,
+        460
+      ]
     }
   ],
   "connections": {
-    "Every 5 min": { "main": [[{ "node": "Fetch edited items", "type": "main", "index": 0 }]] },
-    "Fetch edited items": { "main": [[{ "node": "Loop Over Items", "type": "main", "index": 0 }]] },
-    "Loop Over Items": {
-      "main": [[], [{ "node": "Chunk to 4096 limit", "type": "main", "index": 0 }]]
-    },
-    "Chunk to 4096 limit": {
-      "main": [[{ "node": "Telegram · sendMessage", "type": "main", "index": 0 }]]
-    },
-    "Telegram · sendMessage": { "main": [[{ "node": "Flood-wait 2s", "type": "main", "index": 0 }]] },
-    "Flood-wait 2s": { "main": [[{ "node": "Last chunk?", "type": "main", "index": 0 }]] },
-    "Last chunk?": {
+    "Every 5 min": {
       "main": [
-        [{ "node": "Mark published", "type": "main", "index": 0 }],
-        [{ "node": "Next chunk", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Fetch edited items",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "Mark published": { "main": [[{ "node": "Loop Over Items", "type": "main", "index": 0 }]] },
-    "Next chunk": { "main": [[{ "node": "Loop Over Items", "type": "main", "index": 0 }]] }
+    "Fetch edited items": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Chunk to 4096 limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chunk to 4096 limit": {
+      "main": [
+        [
+          {
+            "node": "Telegram · sendMessage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram · sendMessage": {
+      "main": [
+        [
+          {
+            "node": "Flood-wait 2s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flood-wait 2s": {
+      "main": [
+        [
+          {
+            "node": "Last chunk?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Last chunk?": {
+      "main": [
+        [
+          {
+            "node": "Mark published",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Next chunk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark published": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Next chunk": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual test run": {
+      "main": [
+        [
+          {
+            "node": "Fetch edited items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
-  "settings": { "executionOrder": "v1", "saveDataErrorExecution": "all" },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all"
+  },
   "pinData": {},
-  "tags": [{ "name": "telegram" }]
+  "tags": [
+    {
+      "name": "telegram"
+    }
+  ]
 }

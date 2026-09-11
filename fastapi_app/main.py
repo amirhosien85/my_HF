@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 import vector_store
-from config import COLLISION_THRESHOLD, LLM_TIMEOUT_SECONDS, SERVICE_TOKEN
+from config import COLLISION_THRESHOLD, HF_ROUTER_BASE, LLM_TIMEOUT_SECONDS, SERVICE_TOKEN
 from hf_client import HFError, chat
 from persona import BUTTERFLY_EFFECT_PROMPT, RED_PILL_PROMPT
 
@@ -148,7 +148,7 @@ async def voice(payload: VoiceIn) -> dict:
         )
         audio.raise_for_status()
         asr = await client.post(
-            f"https://api-inference.huggingface.co/models/{ASR_MODEL}",
+            f"{HF_ROUTER_BASE}/hf-inference/models/{ASR_MODEL}",
             headers={"Authorization": f"Bearer {hf_token}", "Content-Type": "audio/ogg"},
             content=audio.content,
         )

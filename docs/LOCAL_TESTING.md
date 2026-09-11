@@ -77,6 +77,15 @@ missing/invalid or the model is cold — retry once.
 | 6 | Send a text or voice message to the bot, run 02 | idea stored (`curl localhost:8500/health` count grows; voice also returns a transcript) |
 | 7 | Tap 💤 three times on the same category, then workflow 06 → *Execute workflow* | the "reduce frequency" suggestion message with its two buttons |
 
+### Running a workflow from the CLI instead of the UI
+
+```bash
+docker compose exec -e N8N_RUNNERS_ENABLED=false n8n n8n execute --id wf01radar
+```
+
+`N8N_RUNNERS_ENABLED=false` is required: the CLI process does not start a task
+runner, so any workflow containing a Code node hangs forever with runners on.
+
 Useful queries:
 
 ```bash
@@ -101,4 +110,6 @@ Watch **Executions** for failures; `saveDataErrorExecution: all` keeps failed ru
 | `Bad Request: message thread not found` | wrong `TOPIC_*` id, or Topics not enabled in the group |
 | `can't parse entities` | the model emitted invalid HTML — the article is HTML-mode; re-run the editorial node |
 | `$env.HF_TOKEN` is empty in a node | env var not passed to the n8n container, or `N8N_BLOCK_ENV_ACCESS_IN_NODE=true` |
+| `n8n execute` never returns | task runners are on for the CLI process — re-run with `-e N8N_RUNNERS_ENABLED=false` |
+| `not supported by any provider you have enabled` | the HF model is not enabled for your token — list options with `curl -H "Authorization: Bearer $HF_TOKEN" https://router.huggingface.co/v1/models` |
 | HF 503 / model loading | serverless cold start; the HTTP node retries 3× — raise the timeout if needed |
