@@ -1,0 +1,232 @@
+{
+  "name": "05 · Red Pill Deep Dive (RAG) + reaction sink",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            { "name": "callback_data" },
+            { "name": "user_id" },
+            { "name": "chat_id" },
+            { "name": "callback_query_id" }
+          ]
+        }
+      },
+      "id": "e5000000-0000-4000-8000-000000000001",
+      "name": "When called by 02",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [-960, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// callback_data format: <action>|<category>|<short_id>\nreturn $input.all().map(item => {\n  const [action = '', category = 'ai', short_id = ''] = String(item.json.callback_data || '').split('|');\n  const toast = { fire: '🔥 ثبت شد، پشمام!', pass: '💤 باشه، کمترش می‌کنم', redpill: '💊 قرص قرمز خورده شد... صبر کن' }[action] || '✅';\n  return { json: { ...item.json, action, category, short_id, toast } };\n});"
+      },
+      "id": "e5000000-0000-4000-8000-000000000002",
+      "name": "Parse callback",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-740, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/answerCallbackQuery",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ callback_query_id: $json.callback_query_id, text: $json.toast }) }}",
+        "options": { "response": { "response": { "neverError": true } } }
+      },
+      "id": "e5000000-0000-4000-8000-000000000003",
+      "name": "Telegram · answerCallbackQuery",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-520, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH target AS (\n  SELECT url FROM news_items WHERE short_id = $1\n), ins AS (\n  INSERT INTO reactions (url, category, user_id, action)\n  SELECT url, $2, $3::bigint, $4 FROM target\n  RETURNING category\n)\nINSERT INTO category_prefs (user_id, category, ignore_streak, updated_at)\nVALUES ($3::bigint, $2, CASE WHEN $4 = 'pass' THEN 1 ELSE 0 END, now())\nON CONFLICT (user_id, category) DO UPDATE\n  SET ignore_streak = CASE WHEN $4 = 'pass' THEN category_prefs.ignore_streak + 1 ELSE 0 END,\n      updated_at = now()\nRETURNING user_id, category, ignore_streak;",
+        "options": {
+          "queryReplacement": "={{ $('Parse callback').item.json.short_id }},={{ $('Parse callback').item.json.category }},={{ $('Parse callback').item.json.user_id }},={{ $('Parse callback').item.json.action }}"
+        }
+      },
+      "id": "e5000000-0000-4000-8000-000000000004",
+      "name": "Record reaction + streak",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [-300, 300],
+      "credentials": {
+        "postgres": { "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID", "name": "Supabase Postgres" }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "version": 2 },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "is-redpill",
+              "operator": { "type": "string", "operation": "equals" },
+              "leftValue": "={{ $('Parse callback').item.json.action }}",
+              "rightValue": "redpill"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e5000000-0000-4000-8000-000000000005",
+      "name": "Red Pill?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-80, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT url, title, summary FROM news_items WHERE short_id = $1;",
+        "options": { "queryReplacement": "={{ $('Parse callback').item.json.short_id }}" }
+      },
+      "id": "e5000000-0000-4000-8000-000000000006",
+      "name": "Load source item",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [140, 200],
+      "credentials": {
+        "postgres": { "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID", "name": "Supabase Postgres" }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.COGNITIVE_BASE_URL }}/redpill",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "X-Service-Token", "value": "={{ $env.SERVICE_TOKEN }}" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ title: $json.title, summary: $json.summary, url: $json.url }) }}",
+        "options": { "timeout": 240000 }
+      },
+      "id": "e5000000-0000-4000-8000-000000000007",
+      "name": "Cognitive · deep dive (RAG)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [360, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const LIMIT = 3900;\nconst source = $('Load source item').item.json;\nconst body = String($json.text || '').trim();\nconst header = `<b>💊 قرص قرمز: ${source.title}</b>\\n`;\nconst full = `${header}\\n${body}\\n\\n🔗 <a href=\"${source.url}\">منبع</a>`;\nconst chunks = [];\nfor (let i = 0; i < full.length; i += LIMIT) chunks.push(full.slice(i, i + LIMIT));\nreturn chunks.map((text, index) => ({ json: { text, chunk_index: index, total: chunks.length } }));"
+      },
+      "id": "e5000000-0000-4000-8000-000000000008",
+      "name": "Chunk report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [580, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $env.TELEGRAM_SUPERGROUP_ID, message_thread_id: Number($env.TOPIC_REDPILL), text: $json.text, parse_mode: 'HTML', disable_web_page_preview: true }) }}",
+        "options": { "timeout": 30000, "response": { "response": { "neverError": true } } }
+      },
+      "id": "e5000000-0000-4000-8000-000000000009",
+      "name": "Telegram · Red Pill Vault",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [800, 200]
+    },
+    {
+      "parameters": { "amount": 2, "unit": "seconds" },
+      "id": "e5000000-0000-4000-8000-00000000000a",
+      "name": "Flood-wait 2s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [1020, 200],
+      "webhookId": "c0000000-0000-4000-8000-0000000000cc"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "version": 2 },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "is-slowdown",
+              "operator": { "type": "string", "operation": "equals" },
+              "leftValue": "={{ $('Parse callback').item.json.action }}",
+              "rightValue": "slow"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e5000000-0000-4000-8000-00000000000b",
+      "name": "Slow down category?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [140, 420]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE category_prefs\nSET frequency_hours = LEAST(frequency_hours * 4, 72),\n    ignore_streak = 0,\n    updated_at = now()\nWHERE user_id = $1::bigint AND category = $2;",
+        "options": {
+          "queryReplacement": "={{ $('Parse callback').item.json.user_id }},={{ $('Parse callback').item.json.category }}"
+        }
+      },
+      "id": "e5000000-0000-4000-8000-00000000000c",
+      "name": "Reduce frequency",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [360, 420],
+      "credentials": {
+        "postgres": { "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID", "name": "Supabase Postgres" }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "e5000000-0000-4000-8000-00000000000d",
+      "name": "Done",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [360, 560]
+    }
+  ],
+  "connections": {
+    "When called by 02": { "main": [[{ "node": "Parse callback", "type": "main", "index": 0 }]] },
+    "Parse callback": {
+      "main": [[{ "node": "Telegram · answerCallbackQuery", "type": "main", "index": 0 }]]
+    },
+    "Telegram · answerCallbackQuery": {
+      "main": [[{ "node": "Record reaction + streak", "type": "main", "index": 0 }]]
+    },
+    "Record reaction + streak": { "main": [[{ "node": "Red Pill?", "type": "main", "index": 0 }]] },
+    "Red Pill?": {
+      "main": [
+        [{ "node": "Load source item", "type": "main", "index": 0 }],
+        [{ "node": "Slow down category?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Slow down category?": {
+      "main": [
+        [{ "node": "Reduce frequency", "type": "main", "index": 0 }],
+        [{ "node": "Done", "type": "main", "index": 0 }]
+      ]
+    },
+    "Load source item": {
+      "main": [[{ "node": "Cognitive · deep dive (RAG)", "type": "main", "index": 0 }]]
+    },
+    "Cognitive · deep dive (RAG)": { "main": [[{ "node": "Chunk report", "type": "main", "index": 0 }]] },
+    "Chunk report": { "main": [[{ "node": "Telegram · Red Pill Vault", "type": "main", "index": 0 }]] },
+    "Telegram · Red Pill Vault": { "main": [[{ "node": "Flood-wait 2s", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "saveDataErrorExecution": "all" },
+  "pinData": {},
+  "tags": [{ "name": "redpill" }]
+}

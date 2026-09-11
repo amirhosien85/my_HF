@@ -1,0 +1,117 @@
+{
+  "name": "01 · Ingestion Radar (RSS + GitHub)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "a1000000-0000-4000-8000-000000000001",
+      "name": "Every 30 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-620, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Feed registry. category must match the Telegram topic router in workflow 04.\nconst feeds = [\n  { url: 'https://feeds.feedburner.com/TheHackersNews', source: 'thehackernews', category: 'hack' },\n  { url: 'https://www.bleepingcomputer.com/feed/', source: 'bleepingcomputer', category: 'hack' },\n  { url: 'https://krebsonsecurity.com/feed/', source: 'krebs', category: 'hack' },\n  { url: 'https://hnrss.org/newest?q=jailbreak+OR+LLM+security', source: 'hackernews', category: 'ai' },\n  { url: 'https://huggingface.co/blog/feed.xml', source: 'huggingface', category: 'ai' },\n  { url: 'https://github.com/danielmiessler/fabric/releases.atom', source: 'github:fabric', category: 'ai' },\n  { url: 'https://github.com/projectdiscovery/nuclei/releases.atom', source: 'github:nuclei', category: 'hack' },\n  { url: 'https://github.com/elder-plinius/L1B3RT4S/commits/main.atom', source: 'github:liberatas', category: 'ai' }\n];\nreturn feeds.map(feed => ({ json: feed }));"
+      },
+      "id": "a1000000-0000-4000-8000-000000000002",
+      "name": "Feed Registry",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-400, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {
+          "ignoreSSL": false
+        }
+      },
+      "id": "a1000000-0000-4000-8000-000000000003",
+      "name": "Read Feed",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.1,
+      "position": [-180, 300],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Normalise RSS + GitHub Atom entries into the news_items shape.\nconst out = [];\nconst maxAgeHours = Number($env.RADAR_MAX_AGE_HOURS || 48);\nfor (const item of $input.all()) {\n  const j = item.json;\n  const paired = $('Feed Registry').all();\n  const feed = paired[item.pairedItem?.item ?? 0]?.json ?? paired[0].json;\n  const url = j.link || j.id || j.guid;\n  if (!url) continue;\n  const published = j.isoDate || j.pubDate || j.updated || new Date().toISOString();\n  const ageHours = (Date.now() - new Date(published).getTime()) / 3600000;\n  if (Number.isFinite(ageHours) && ageHours > maxAgeHours) continue;\n  const summary = String(j.contentSnippet || j.content || j.summary || '')\n    .replace(/<[^>]+>/g, ' ')\n    .replace(/\\s+/g, ' ')\n    .trim()\n    .slice(0, 1500);\n  out.push({\n    json: {\n      url: String(url),\n      title: String(j.title || '').trim().slice(0, 400),\n      summary,\n      source: feed.source,\n      category: feed.category,\n      published_at: new Date(published).toISOString()\n    }\n  });\n}\nreturn out;"
+      },
+      "id": "a1000000-0000-4000-8000-000000000004",
+      "name": "Normalize",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [40, 300]
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "schema": {
+          "__rl": true,
+          "mode": "name",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "name",
+          "value": "news_items"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": ["url"],
+          "value": {
+            "url": "={{ $json.url }}",
+            "title": "={{ $json.title }}",
+            "summary": "={{ $json.summary }}",
+            "source": "={{ $json.source }}",
+            "category": "={{ $json.category }}",
+            "published_at": "={{ $json.published_at }}"
+          }
+        },
+        "options": {
+          "outputColumns": ["url", "title", "status"]
+        }
+      },
+      "id": "a1000000-0000-4000-8000-000000000005",
+      "name": "Upsert news_items (dedupe by url)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [260, 300],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID",
+          "name": "Supabase Postgres"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every 30 min": {
+      "main": [[{ "node": "Feed Registry", "type": "main", "index": 0 }]]
+    },
+    "Feed Registry": {
+      "main": [[{ "node": "Read Feed", "type": "main", "index": 0 }]]
+    },
+    "Read Feed": {
+      "main": [[{ "node": "Normalize", "type": "main", "index": 0 }]]
+    },
+    "Normalize": {
+      "main": [[{ "node": "Upsert news_items (dedupe by url)", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all"
+  },
+  "pinData": {},
+  "tags": [{ "name": "radar" }]
+}

@@ -1,0 +1,95 @@
+{
+  "name": "06 · Ghosting Algorithm (3 ignores → suggest less)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "hours", "hoursInterval": 6 }] }
+      },
+      "id": "f6000000-0000-4000-8000-000000000001",
+      "name": "Every 6 hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-720, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT user_id, category, ignore_streak, frequency_hours\nFROM category_prefs\nWHERE muted = false\n  AND ignore_streak >= 3\n  AND (suggested_at IS NULL OR suggested_at < now() - interval '24 hours');",
+        "options": {}
+      },
+      "id": "f6000000-0000-4000-8000-000000000002",
+      "name": "Find ghosted categories",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [-500, 300],
+      "credentials": {
+        "postgres": { "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID", "name": "Supabase Postgres" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const labels = { ai: 'هوش مصنوعی 🤖', hack: 'هک و جیلبریک 💣', redpill: 'قرص قرمز 💊' };\nreturn $input.all().map(item => {\n  const j = item.json;\n  const label = labels[j.category] || j.category;\n  const text = [\n    '🕶️ <b>رادار متوجه شد که داری نادیده می‌گیری...</b>',\n    '',\n    `دستهٔ <b>${label}</b> رو ${j.ignore_streak} بار پشت سر هم رد کردی.`,\n    'پشمام، یعنی دیگه برات جذاب نیست؟ می‌تونم فرکانسش رو کم کنم تا کمتر مزاحم بشه. ⚡'\n  ].join('\\n');\n  return { json: { ...j, text } };\n});"
+      },
+      "id": "f6000000-0000-4000-8000-000000000003",
+      "name": "Compose suggestion",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-280, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $env.TELEGRAM_SUPERGROUP_ID, message_thread_id: Number($json.category === 'hack' ? $env.TOPIC_HACK : $env.TOPIC_AI), text: $json.text, parse_mode: 'HTML', reply_markup: { inline_keyboard: [[ { text: '🔉 کمترش کن', callback_data: 'slow|' + $json.category + '|ghost' }, { text: '🔥 نه، ادامه بده', callback_data: 'fire|' + $json.category + '|ghost' } ]] } }) }}",
+        "options": { "timeout": 30000, "response": { "response": { "neverError": true } } }
+      },
+      "id": "f6000000-0000-4000-8000-000000000004",
+      "name": "Telegram · suggest lower frequency",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-60, 300]
+    },
+    {
+      "parameters": { "amount": 2, "unit": "seconds" },
+      "id": "f6000000-0000-4000-8000-000000000005",
+      "name": "Flood-wait 2s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [160, 300],
+      "webhookId": "c0000000-0000-4000-8000-0000000000dd"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE category_prefs SET suggested_at = now(), updated_at = now() WHERE user_id = $1::bigint AND category = $2;",
+        "options": {
+          "queryReplacement": "={{ $('Compose suggestion').item.json.user_id }},={{ $('Compose suggestion').item.json.category }}"
+        }
+      },
+      "id": "f6000000-0000-4000-8000-000000000006",
+      "name": "Mark suggested",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [380, 300],
+      "credentials": {
+        "postgres": { "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID", "name": "Supabase Postgres" }
+      }
+    }
+  ],
+  "connections": {
+    "Every 6 hours": { "main": [[{ "node": "Find ghosted categories", "type": "main", "index": 0 }]] },
+    "Find ghosted categories": { "main": [[{ "node": "Compose suggestion", "type": "main", "index": 0 }]] },
+    "Compose suggestion": {
+      "main": [[{ "node": "Telegram · suggest lower frequency", "type": "main", "index": 0 }]]
+    },
+    "Telegram · suggest lower frequency": {
+      "main": [[{ "node": "Flood-wait 2s", "type": "main", "index": 0 }]]
+    },
+    "Flood-wait 2s": { "main": [[{ "node": "Mark suggested", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "saveDataErrorExecution": "all" },
+  "pinData": {},
+  "tags": [{ "name": "feedback" }]
+}

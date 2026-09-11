@@ -1,0 +1,158 @@
+{
+  "name": "03 · Editorial Multi-Agent (HF Inference)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "minutes", "minutesInterval": 15 }] }
+      },
+      "id": "c3000000-0000-4000-8000-000000000001",
+      "name": "Every 15 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-940, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT n.url, n.title, n.summary, n.source, n.category\nFROM news_items n\nLEFT JOIN category_prefs p ON p.category = n.category AND p.muted = true\nWHERE n.status = 'new' AND p.category IS NULL\nORDER BY n.published_at DESC NULLS LAST\nLIMIT 5;",
+        "options": {}
+      },
+      "id": "c3000000-0000-4000-8000-000000000002",
+      "name": "Fetch new items",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [-720, 300],
+      "credentials": {
+        "postgres": { "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID", "name": "Supabase Postgres" }
+      }
+    },
+    {
+      "parameters": { "options": { "reset": false }, "batchSize": 1 },
+      "id": "c3000000-0000-4000-8000-000000000003",
+      "name": "Loop Over Items",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [-500, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Persona contract shared with fastapi_app/persona.py. Keep both in sync.\nconst persona = [\n  'تو «رادار سایبری» هستی: ترکیبی از یک رفیق صمیمیِ پرانرژی و یک هکر کلاه‌سفیدِ تاریک و پارانویید.',\n  '',\n  'قوانین سختگیرانه:',\n  '1. فقط و فقط فارسی بنویس (نام ابزار/CVE به انگلیسی مجاز است).',\n  '2. لحن: صمیمی، پرانرژی، کمی تاریک و بدبین نسبت به قدرت‌ها و شرکت‌ها.',\n  '3. از اصطلاح «پشمام» به‌صورت طبیعی و به‌جا استفاده کن (زوری و تکراری نه).',\n  '4. کلمات ممنوعه: هرگز و تحت هیچ شرایطی از «حاجی» یا «داداش» استفاده نکن.',\n  '5. از ایموجی زیاد استفاده کن (🔥 😎 💣 🕶️ ⚡).',\n  '6. خروجی را با HTML سبک تلگرام بنویس (<b>, <i>, <code>, <a href>)، نه Markdown.'\n].join('\\n');\n\nconst structure = [\n  'ساختار خروجی:',\n  '<b>[تیتر کوتاه و جذاب]</b> 🔥',\n  'دو تا سه خط توضیح خودمانی از ماجرا.',\n  '<b>⚙️ چرا مهمه؟</b> یک تا دو خط فنی.',\n  '<b>🕶️ نگاه پارانوید:</b> یک خط بدبینانه.',\n  'بدون مقدمه‌چینی و بدون تکرار لینک.'\n].join('\\n');\n\nconst item = $json;\nconst userPrompt = `خبر خام:\\nعنوان: ${item.title}\\nمنبع: ${item.source}\\nدسته: ${item.category}\\nخلاصه: ${item.summary || '—'}\\nلینک: ${item.url}`;\n\nreturn [{ json: { ...item, persona, system_prompt: persona + '\\n\\n' + structure, user_prompt: userPrompt } }];"
+      },
+      "id": "c3000000-0000-4000-8000-000000000004",
+      "name": "Build persona prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-280, 380]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.HF_API_BASE || 'https://router.huggingface.co/v1' }}/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.HF_TOKEN }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: $env.HF_MODEL || 'meta-llama/Meta-Llama-3-70B-Instruct', temperature: 0.75, max_tokens: 900, messages: [ { role: 'system', content: $json.system_prompt }, { role: 'user', content: $json.user_prompt } ] }) }}",
+        "options": { "timeout": 120000, "retry": { "retry": { "maxTries": 3, "waitBetweenTries": 3000 } } }
+      },
+      "id": "c3000000-0000-4000-8000-000000000005",
+      "name": "HF · Editor agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-60, 380],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.COGNITIVE_BASE_URL }}/butterfly",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "X-Service-Token", "value": "={{ $env.SERVICE_TOKEN }}" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ title: $('Build persona prompt').item.json.title, summary: $('Build persona prompt').item.json.summary, url: $('Build persona prompt').item.json.url, category: $('Build persona prompt').item.json.category }) }}",
+        "options": { "timeout": 120000 }
+      },
+      "id": "c3000000-0000-4000-8000-000000000006",
+      "name": "Dystopian Butterfly Effect",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [160, 380],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.COGNITIVE_BASE_URL }}/collide",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "X-Service-Token", "value": "={{ $env.SERVICE_TOKEN }}" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ title: $('Build persona prompt').item.json.title, summary: $('Build persona prompt').item.json.summary, url: $('Build persona prompt').item.json.url, category: $('Build persona prompt').item.json.category, top_k: 3 }) }}",
+        "options": { "timeout": 120000 }
+      },
+      "id": "c3000000-0000-4000-8000-000000000007",
+      "name": "Idea Collider · cross-reference",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [380, 380],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const base = $('Build persona prompt').item.json;\nconst llm = $('HF · Editor agent').item.json;\nconst butterfly = $('Dystopian Butterfly Effect').item.json || {};\nconst collide = $json || {};\n\nconst banned = ['حاجی', 'داداش'];\nlet body = llm?.choices?.[0]?.message?.content || '';\nif (!body.trim()) {\n  body = `<b>${base.title}</b> 🔥\\n${(base.summary || '').slice(0, 500)}`;\n}\nfor (const word of banned) body = body.split(word).join('رفیق');\n\nconst parts = [body.trim()];\nif (collide.collision && collide.text) parts.push(collide.text.trim());\nif (butterfly.text) parts.push(butterfly.text.trim());\nparts.push(`🔗 <a href=\"${base.url}\">منبع</a>`);\n\nreturn [{ json: { url: base.url, category: base.category, article: parts.join('\\n\\n') } }];"
+      },
+      "id": "c3000000-0000-4000-8000-000000000008",
+      "name": "Assemble article",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [600, 380]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE news_items SET article = $2, status = 'edited', updated_at = now() WHERE url = $1;",
+        "options": { "queryReplacement": "={{ $json.url }},={{ $json.article }}" }
+      },
+      "id": "c3000000-0000-4000-8000-000000000009",
+      "name": "Save article",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [820, 380],
+      "credentials": {
+        "postgres": { "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID", "name": "Supabase Postgres" }
+      }
+    }
+  ],
+  "connections": {
+    "Every 15 min": { "main": [[{ "node": "Fetch new items", "type": "main", "index": 0 }]] },
+    "Fetch new items": { "main": [[{ "node": "Loop Over Items", "type": "main", "index": 0 }]] },
+    "Loop Over Items": {
+      "main": [[], [{ "node": "Build persona prompt", "type": "main", "index": 0 }]]
+    },
+    "Build persona prompt": { "main": [[{ "node": "HF · Editor agent", "type": "main", "index": 0 }]] },
+    "HF · Editor agent": {
+      "main": [[{ "node": "Dystopian Butterfly Effect", "type": "main", "index": 0 }]]
+    },
+    "Dystopian Butterfly Effect": {
+      "main": [[{ "node": "Idea Collider · cross-reference", "type": "main", "index": 0 }]]
+    },
+    "Idea Collider · cross-reference": {
+      "main": [[{ "node": "Assemble article", "type": "main", "index": 0 }]]
+    },
+    "Assemble article": { "main": [[{ "node": "Save article", "type": "main", "index": 0 }]] },
+    "Save article": { "main": [[{ "node": "Loop Over Items", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "saveDataErrorExecution": "all" },
+  "pinData": {},
+  "tags": [{ "name": "editorial" }]
+}
