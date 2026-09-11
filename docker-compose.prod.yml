@@ -1,0 +1,42 @@
+# Production overlay for a VPS:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# Adds Caddy (automatic HTTPS) in front of n8n, keeps Postgres and FastAPI off the public
+# internet, and restarts everything on reboot.
+services:
+  postgres:
+    restart: unless-stopped
+    ports: !override []
+
+  cognitive:
+    restart: unless-stopped
+    ports: !override []
+
+  n8n:
+    restart: unless-stopped
+    ports: !override []
+    environment:
+      N8N_HOST: ${N8N_HOST}
+      N8N_PROTOCOL: https
+      WEBHOOK_URL: https://${N8N_HOST}/
+      N8N_EDITOR_BASE_URL: https://${N8N_HOST}/
+      N8N_PROXY_HOPS: "1"
+      N8N_SECURE_COOKIE: "true"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - n8n
+    environment:
+      N8N_HOST: ${N8N_HOST}
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    ports:
+      - "80:80"
+      - "443:443"
+
+volumes:
+  caddy_data:
+  caddy_config:

@@ -1,4 +1,17 @@
-# Deploying to a free Hugging Face Docker Space
+# Deploying to a Hugging Face Docker Space
+
+> **Docker Spaces are no longer free.** Hugging Face now gates any Space that runs on compute
+> behind a paid plan: PRO for personal accounts, Team/Enterprise for organizations. Only Static
+> Spaces remain free (plus up to 2 ZeroGPU Gradio Spaces for personal accounts in good standing).
+> `CPU Basic` still costs $0/hour — the paywall is on *creating* a Gradio/Docker Space, not on the
+> hardware. Creating one from the CLI without a plan fails with: *"Static Spaces are free for
+> everyone, but hosting Gradio and Docker Spaces on free cpu-basic requires a PRO subscription."*
+> See <https://huggingface.co/docs/hub/en/spaces-overview> and <https://huggingface.co/pricing>.
+>
+> A Static Space cannot host this project (it serves files only — no n8n, no supervisord, no
+> FastAPI). So the options are a PRO subscription, or any other Docker host — see
+> `docs/VPS_DEPLOY.md`, which runs the same images on a ~$5/mo VPS and, unlike a free Space,
+> never sleeps.
 
 The root `Dockerfile` runs n8n (port `7860`) and the FastAPI cognitive engine
 (`127.0.0.1:8500`) under supervisord in one container — a Space exposes exactly one port.
@@ -31,8 +44,9 @@ Hardware/template selections:
 | Setting | Value |
 | --- | --- |
 | SDK / template | **Docker → Blank** (do not pick a Gradio/Streamlit template) |
-| Hardware | **CPU basic · 2 vCPU · 16 GB — FREE** (all inference is remote; no GPU needed) |
-| Persistent storage | none (free tier); durable state lives in Postgres |
+| Plan | **PRO** (personal) or Team/Enterprise (org) — required to create a Docker Space |
+| Hardware | **CPU basic · 2 vCPU · 16 GB — $0/hour** (all inference is remote; no GPU needed) |
+| Persistent storage | none; durable state lives in Postgres |
 | Visibility | **Private** — the n8n editor is reachable at the Space URL |
 | App port | `7860` (set via `app_port` in the README front matter) |
 | Sleep time | free Spaces pause after ~48h idle; see §5 |
@@ -44,7 +58,8 @@ hf auth login                                   # paste a token with write permi
 hf repos create <user>/cyber-orchestrator --repo-type space --sdk docker --private
 ```
 
-Or click **New Space** on the website and choose Docker → Blank → CPU basic (free).
+Or click **New Space** on the website and choose Docker → Blank → CPU basic. If the form only
+offers **Static**, the account has no paid plan — the Docker SDK is disabled for it.
 
 ## 3. Push the code
 
@@ -142,9 +157,9 @@ Already baked into the image (override only if you know why): `N8N_PORT=7860`,
    the AI topic with the three inline buttons.
 6. Activate 01, 02, 03, 04, 06. Workflow 05 is called by 02 — save it, no activation needed.
 
-## 6. Free-tier realities
+## 6. Runtime realities
 
-- **Sleep:** free Spaces pause after ~48h without traffic, and schedule triggers do not run while
+- **Sleep:** Spaces pause after ~48h without traffic, and schedule triggers do not run while
   paused. Ping the Space URL every few minutes (UptimeRobot / cron-job.org) to keep it awake.
 - **Rebuild = fresh disk:** only Postgres survives. `/data/chroma` is rebuilt from the `ideas`
   table if you re-seed it; n8n credentials survive because they live in Postgres (encrypted with
@@ -166,3 +181,4 @@ Already baked into the image (override only if you know why): `N8N_PORT=7860`,
 | Every credential is suddenly invalid | `N8N_ENCRYPTION_KEY` changed |
 | `not supported by any provider you have enabled` | model not enabled for your token — list options with `curl -H "Authorization: Bearer $HF_TOKEN" https://router.huggingface.co/v1/models` |
 | Nothing happens on schedule | the Space is asleep — add an uptime ping |
+| Create-Space UI only offers Static | the account has no paid plan — subscribe to PRO or use `docs/VPS_DEPLOY.md` |

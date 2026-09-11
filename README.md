@@ -33,7 +33,7 @@ Telegram  ──getUpdates polling──►  n8n (port 7860)  ──HTTP──�
 | `fastapi_app/` | Cognitive engine: Idea Collider, Butterfly Effect, Red Pill RAG, voice transcription |
 | `n8n_workflows/` | Importable workflow JSONs (01–06) |
 | `db/schema.sql` | Postgres schema (news, telegram offset/updates, reactions, prefs, ideas) |
-| `docs/` | [Local testing](docs/LOCAL_TESTING.md) · [HF Spaces deploy](docs/HF_SPACES_DEPLOY.md) |
+| `docs/` | [Local testing](docs/LOCAL_TESTING.md) · [VPS deploy](docs/VPS_DEPLOY.md) · [HF Spaces deploy](docs/HF_SPACES_DEPLOY.md) |
 
 ## Workflows
 
@@ -62,8 +62,11 @@ open http://localhost:7860    # n8n editor
 ```
 
 Then follow [docs/LOCAL_TESTING.md](docs/LOCAL_TESTING.md) to import the workflows, create the
-Postgres credential, and exercise the end-to-end flow. Deployment steps are in
-[docs/HF_SPACES_DEPLOY.md](docs/HF_SPACES_DEPLOY.md).
+Postgres credential, and exercise the end-to-end flow.
+
+For production, [docs/VPS_DEPLOY.md](docs/VPS_DEPLOY.md) runs the same stack behind Caddy on any
+Docker host; [docs/HF_SPACES_DEPLOY.md](docs/HF_SPACES_DEPLOY.md) covers Hugging Face Spaces,
+which now require a PRO/Team plan for Docker Spaces.
 
 ## Cognitive engine API
 
