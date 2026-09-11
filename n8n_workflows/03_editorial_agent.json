@@ -3,13 +3,23 @@
   "nodes": [
     {
       "parameters": {
-        "rule": { "interval": [{ "field": "minutes", "minutesInterval": 15 }] }
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
       },
       "id": "c3000000-0000-4000-8000-000000000001",
       "name": "Every 15 min",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [-940, 300]
+      "position": [
+        -940,
+        300
+      ]
     },
     {
       "parameters": {
@@ -21,18 +31,32 @@
       "name": "Fetch new items",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [-720, 300],
+      "position": [
+        -720,
+        300
+      ],
       "credentials": {
-        "postgres": { "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID", "name": "Supabase Postgres" }
+        "postgres": {
+          "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID",
+          "name": "Supabase Postgres"
+        }
       }
     },
     {
-      "parameters": { "options": { "reset": false }, "batchSize": 1 },
+      "parameters": {
+        "options": {
+          "reset": false
+        },
+        "batchSize": 1
+      },
       "id": "c3000000-0000-4000-8000-000000000003",
       "name": "Loop Over Items",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
-      "position": [-500, 300]
+      "position": [
+        -500,
+        300
+      ]
     },
     {
       "parameters": {
@@ -42,7 +66,10 @@
       "name": "Build persona prompt",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-280, 380]
+      "position": [
+        -280,
+        380
+      ]
     },
     {
       "parameters": {
@@ -51,20 +78,37 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Authorization", "value": "=Bearer {{ $env.HF_TOKEN }}" },
-            { "name": "Content-Type", "value": "application/json" }
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.HF_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: $env.HF_MODEL || 'meta-llama/Meta-Llama-3-70B-Instruct', temperature: 0.75, max_tokens: 900, messages: [ { role: 'system', content: $json.system_prompt }, { role: 'user', content: $json.user_prompt } ] }) }}",
-        "options": { "timeout": 120000, "retry": { "retry": { "maxTries": 3, "waitBetweenTries": 3000 } } }
+        "jsonBody": "={{ JSON.stringify({ model: $env.HF_MODEL || 'meta-llama/Llama-3.3-70B-Instruct', temperature: 0.75, max_tokens: 900, messages: [ { role: 'system', content: $json.system_prompt }, { role: 'user', content: $json.user_prompt } ] }) }}",
+        "options": {
+          "timeout": 120000,
+          "retry": {
+            "retry": {
+              "maxTries": 3,
+              "waitBetweenTries": 3000
+            }
+          }
+        }
       },
       "id": "c3000000-0000-4000-8000-000000000005",
       "name": "HF · Editor agent",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-60, 380],
+      "position": [
+        -60,
+        380
+      ],
       "onError": "continueRegularOutput"
     },
     {
@@ -73,18 +117,28 @@
         "url": "={{ $env.COGNITIVE_BASE_URL }}/butterfly",
         "sendHeaders": true,
         "headerParameters": {
-          "parameters": [{ "name": "X-Service-Token", "value": "={{ $env.SERVICE_TOKEN }}" }]
+          "parameters": [
+            {
+              "name": "X-Service-Token",
+              "value": "={{ $env.SERVICE_TOKEN }}"
+            }
+          ]
         },
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ title: $('Build persona prompt').item.json.title, summary: $('Build persona prompt').item.json.summary, url: $('Build persona prompt').item.json.url, category: $('Build persona prompt').item.json.category }) }}",
-        "options": { "timeout": 120000 }
+        "options": {
+          "timeout": 120000
+        }
       },
       "id": "c3000000-0000-4000-8000-000000000006",
       "name": "Dystopian Butterfly Effect",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [160, 380],
+      "position": [
+        160,
+        380
+      ],
       "onError": "continueRegularOutput"
     },
     {
@@ -93,18 +147,28 @@
         "url": "={{ $env.COGNITIVE_BASE_URL }}/collide",
         "sendHeaders": true,
         "headerParameters": {
-          "parameters": [{ "name": "X-Service-Token", "value": "={{ $env.SERVICE_TOKEN }}" }]
+          "parameters": [
+            {
+              "name": "X-Service-Token",
+              "value": "={{ $env.SERVICE_TOKEN }}"
+            }
+          ]
         },
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ title: $('Build persona prompt').item.json.title, summary: $('Build persona prompt').item.json.summary, url: $('Build persona prompt').item.json.url, category: $('Build persona prompt').item.json.category, top_k: 3 }) }}",
-        "options": { "timeout": 120000 }
+        "options": {
+          "timeout": 120000
+        }
       },
       "id": "c3000000-0000-4000-8000-000000000007",
       "name": "Idea Collider · cross-reference",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [380, 380],
+      "position": [
+        380,
+        380
+      ],
       "onError": "continueRegularOutput"
     },
     {
@@ -115,44 +179,167 @@
       "name": "Assemble article",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [600, 380]
+      "position": [
+        600,
+        380
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
         "query": "UPDATE news_items SET article = $2, status = 'edited', updated_at = now() WHERE url = $1;",
-        "options": { "queryReplacement": "={{ $json.url }},={{ $json.article }}" }
+        "options": {
+          "queryReplacement": "={{ $json.url }},={{ $json.article }}"
+        }
       },
       "id": "c3000000-0000-4000-8000-000000000009",
       "name": "Save article",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [820, 380],
+      "position": [
+        820,
+        380
+      ],
       "credentials": {
-        "postgres": { "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID", "name": "Supabase Postgres" }
+        "postgres": {
+          "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID",
+          "name": "Supabase Postgres"
+        }
       }
+    },
+    {
+      "parameters": {},
+      "id": "c3000000-0000-4000-8000-00000000000f",
+      "name": "Manual test run",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -940,
+        460
+      ]
     }
   ],
   "connections": {
-    "Every 15 min": { "main": [[{ "node": "Fetch new items", "type": "main", "index": 0 }]] },
-    "Fetch new items": { "main": [[{ "node": "Loop Over Items", "type": "main", "index": 0 }]] },
-    "Loop Over Items": {
-      "main": [[], [{ "node": "Build persona prompt", "type": "main", "index": 0 }]]
+    "Every 15 min": {
+      "main": [
+        [
+          {
+            "node": "Fetch new items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
-    "Build persona prompt": { "main": [[{ "node": "HF · Editor agent", "type": "main", "index": 0 }]] },
+    "Fetch new items": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Build persona prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build persona prompt": {
+      "main": [
+        [
+          {
+            "node": "HF · Editor agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "HF · Editor agent": {
-      "main": [[{ "node": "Dystopian Butterfly Effect", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Dystopian Butterfly Effect",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Dystopian Butterfly Effect": {
-      "main": [[{ "node": "Idea Collider · cross-reference", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Idea Collider · cross-reference",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Idea Collider · cross-reference": {
-      "main": [[{ "node": "Assemble article", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Assemble article",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
-    "Assemble article": { "main": [[{ "node": "Save article", "type": "main", "index": 0 }]] },
-    "Save article": { "main": [[{ "node": "Loop Over Items", "type": "main", "index": 0 }]] }
+    "Assemble article": {
+      "main": [
+        [
+          {
+            "node": "Save article",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save article": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual test run": {
+      "main": [
+        [
+          {
+            "node": "Fetch new items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
-  "settings": { "executionOrder": "v1", "saveDataErrorExecution": "all" },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all"
+  },
   "pinData": {},
-  "tags": [{ "name": "editorial" }]
+  "tags": [
+    {
+      "name": "editorial"
+    }
+  ]
 }

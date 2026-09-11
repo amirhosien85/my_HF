@@ -3,6 +3,7 @@ import httpx
 from config import (
     HF_API_BASE,
     HF_EMBEDDING_MODEL,
+    HF_ROUTER_BASE,
     HF_MODEL,
     HF_TOKEN,
     LLM_TIMEOUT_SECONDS,
@@ -46,13 +47,9 @@ async def chat(user_prompt: str, extra_system: str = "", temperature: float = 0.
 
 async def embed(texts: list[str]) -> list[list[float]]:
     """Feature extraction through the HF Inference API."""
-    url = f"https://api-inference.huggingface.co/models/{HF_EMBEDDING_MODEL}"
+    url = f"{HF_ROUTER_BASE}/hf-inference/models/{HF_EMBEDDING_MODEL}/pipeline/feature-extraction"
     async with httpx.AsyncClient(timeout=LLM_TIMEOUT_SECONDS) as client:
-        response = await client.post(
-            url,
-            headers=_headers(),
-            json={"inputs": texts, "options": {"wait_for_model": True}},
-        )
+        response = await client.post(url, headers=_headers(), json={"inputs": texts})
     if response.status_code >= 400:
         raise HFError(f"HF embedding failed ({response.status_code}): {response.text[:500]}")
     vectors = response.json()

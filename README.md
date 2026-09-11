@@ -1,3 +1,13 @@
+---
+title: Cyber Orchestrator
+emoji: 🕶️
+colorFrom: gray
+colorTo: red
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # Autonomous Cyber Assistant — n8n + FastAPI (Hugging Face native)
 
 An autonomous cyber/AI news orchestrator: n8n runs the workflows and Telegram I/O, a small
